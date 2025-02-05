@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import java.util.*
+import com.pravera.flutter_foreground_task.service.NotificationDismissedReceiver
 
 /**
  * A service class for implementing foreground service.
@@ -113,6 +114,12 @@ class ForegroundService : Service() {
                 val action = intent.action ?: return
                 val data = intent.getStringExtra(INTENT_DATA_NAME)
                 task?.invokeMethod(action, data)
+
+                if (action == ACTION_NOTIFICATION_DISMISSED) {
+                    // Restart the service with a new notification
+                    startForegroundService()
+                    return
+                }
             } catch (e: Exception) {
                 Log.e(TAG, e.message, e)
             }
@@ -335,19 +342,19 @@ class ForegroundService : Service() {
             builder.setShowWhen(notificationOptions.showWhen)
             builder.setSmallIcon(iconResId)
             builder.setContentIntent(contentIntent)
+            builder.setDeleteIntent(deleteIntent)
             builder.setContentTitle(notificationContent.title)
             builder.setContentText(notificationContent.text)
-            builder.style = Notification.BigTextStyle()
+            builder.setStyle(Notification.BigTextStyle())
             builder.setVisibility(notificationOptions.visibility)
             builder.setOnlyAlertOnce(notificationOptions.onlyAlertOnce)
+            
             if (iconBackgroundColor != null) {
                 builder.setColor(iconBackgroundColor)
             }
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                builder.setDeleteIntent(deleteIntent)
             }
 
             val actions = buildNotificationActions(currButtons, needsRebuildButtons)
@@ -362,20 +369,25 @@ class ForegroundService : Service() {
             builder.setShowWhen(notificationOptions.showWhen)
             builder.setSmallIcon(iconResId)
             builder.setContentIntent(contentIntent)
+            builder.setDeleteIntent(deleteIntent)
             builder.setContentTitle(notificationContent.title)
             builder.setContentText(notificationContent.text)
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(notificationContent.text))
             builder.setVisibility(notificationOptions.visibility)
             builder.setOnlyAlertOnce(notificationOptions.onlyAlertOnce)
+            
             if (iconBackgroundColor != null) {
                 builder.color = iconBackgroundColor
             }
+            
             if (!notificationOptions.enableVibration) {
                 builder.setVibrate(longArrayOf(0L))
             }
+            
             if (!notificationOptions.playSound) {
                 builder.setSound(null)
             }
+            
             builder.priority = notificationOptions.priority
 
             val actions = buildNotificationCompatActions(currButtons, needsRebuildButtons)
