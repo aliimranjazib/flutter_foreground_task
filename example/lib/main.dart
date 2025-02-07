@@ -17,34 +17,38 @@ void startCallback() {
 }
 
 class MyTaskHandler extends TaskHandler {
-  static const String incrementCountCommand = 'incrementCount';
+  int _seconds = 0;
+  bool isPaused = false;
 
-  int _count = 0;
+  String _formatTime() {
+    int hours = _seconds ~/ 3600;
+    int minutes = (_seconds % 3600) ~/ 60;
+    int seconds = _seconds % 60;
+    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
 
-  void _incrementCount() {
-    _count++;
-
-    // Update notification content.
-    FlutterForegroundTask.updateService(
-      notificationTitle: 'Hello MyTaskHandler :)',
-      notificationText: 'count: $_count',
-    );
-
-    // Send data to main isolate.
-    FlutterForegroundTask.sendDataToMain(_count);
+  void _updateTimer() {
+    if (!isPaused) {
+      _seconds++;
+      FlutterForegroundTask.updateService(
+        notificationTitle: isPaused ? 'Timer Paused' : 'Timer Running',
+        notificationText: 'Time: ${_formatTime()}',
+      );
+      FlutterForegroundTask.sendDataToMain(_formatTime());
+    }
   }
 
   // Called when the task is started.
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     print('onStart(starter: ${starter.name})');
-    _incrementCount();
+    _updateTimer();
   }
 
   // Called based on the eventAction set in ForegroundTaskOptions.
   @override
   void onRepeatEvent(DateTime timestamp) {
-    _incrementCount();
+    _updateTimer();
   }
 
   // Called when the task is destroyed.
@@ -57,15 +61,29 @@ class MyTaskHandler extends TaskHandler {
   @override
   void onReceiveData(Object data) {
     print('onReceiveData: $data');
-    if (data == incrementCountCommand) {
-      _incrementCount();
-    }
   }
 
   // Called when the notification button is pressed.
   @override
   void onNotificationButtonPressed(String id) {
-    print('onNotificationButtonPressed: $id');
+    print('Button pressed: $id');
+    if (id == 'pause') {
+      isPaused = !isPaused;
+      FlutterForegroundTask.updateService(
+        notificationTitle: isPaused ? 'Timer Paused' : 'Timer Running',
+        notificationText: 'Time: ${_formatTime()}',
+      );
+      
+      // Open app when pause is clicked
+      _openAppWithDialog();
+    }
+  }
+
+  void _openAppWithDialog() {
+    // Launch the app
+    FlutterForegroundTask.launchApp('/');
+    // Send signal to show dialog
+    FlutterForegroundTask.sendDataToMain({'action': 'show_dialog', 'time': _formatTime()});
   }
 
   // Called when the notification itself is pressed.
@@ -167,13 +185,12 @@ class _ExamplePageState extends State<ExamplePage> {
     } else {
       return FlutterForegroundTask.startService(
         serviceId: 256,
-        notificationTitle: 'Foreground Service is running',
-        notificationText: 'Tap to return to the app',
+        notificationTitle: 'Timer Running',
+        notificationText: 'Time: 00:00:00',
         notificationIcon: null,
         notificationButtons: [
-          const NotificationButton(id: 'btn_hello', text: 'hello'),
+          const NotificationButton(id: 'pause', text: '⏸️ Pause'),
         ],
-        notificationInitialRoute: '/second',
         callback: startCallback,
       );
     }
@@ -183,13 +200,30 @@ class _ExamplePageState extends State<ExamplePage> {
     return FlutterForegroundTask.stopService();
   }
 
-  void _onReceiveTaskData(Object data) {
+  void _onReceiveTaskData(Object? data) {
     print('onReceiveTaskData: $data');
     _taskDataListenable.value = data;
-  }
-
-  void _incrementCount() {
-    FlutterForegroundTask.sendDataToTask(MyTaskHandler.incrementCountCommand);
+    
+    if (data is Map && data['action'] == 'show_dialog') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(data['isPaused'] == true ? 'Timer Paused' : 'Timer Running'),
+            content: Text('Current Time: ${data['time']}'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _stopService();  // Stop service when OK is clicked
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -270,7 +304,6 @@ class _ExamplePageState extends State<ExamplePage> {
         children: [
           buttonBuilder('start service', onPressed: _startService),
           buttonBuilder('stop service', onPressed: _stopService),
-          buttonBuilder('increment count', onPressed: _incrementCount),
         ],
       ),
     );

@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import java.util.*
 import com.pravera.flutter_foreground_task.service.NotificationDismissedReceiver
+import android.widget.RemoteViews
+import com.pravera.flutter_foreground_task.R
 
 /**
  * A service class for implementing foreground service.
@@ -97,6 +99,8 @@ class ForegroundService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
 
+    private var isPaused = false
+
     // A broadcast receiver that handles intents that occur in the foreground service.
     private var broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -119,6 +123,16 @@ class ForegroundService : Service() {
                     // Restart the service with a new notification
                     startForegroundService()
                     return
+                }
+
+                if (intent?.action == ACTION_NOTIFICATION_BUTTON_PRESSED) {
+                    when (intent.getStringExtra(INTENT_DATA_NAME)) {
+                        "pause" -> {
+                            isPaused = !isPaused
+                            task?.invokeMethod(ACTION_NOTIFICATION_BUTTON_PRESSED, "pause")
+                            updateNotification()
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, e.message, e)
@@ -308,95 +322,31 @@ class ForegroundService : Service() {
     }
 
     private fun createNotification(): Notification {
-        // notification icon
+        // Get notification icon
         val icon = notificationContent.icon
         val iconResId = getIconResId(icon)
-        val iconBackgroundColor = icon?.backgroundColorRgb?.let(::getRgbColor)
+        
+        // Create custom layout
+        val remoteViews = RemoteViews(packageName, R.layout.custom_notification)
+        
+        // Set notification content
+        remoteViews.setTextViewText(R.id.notification_title, notificationContent.title)
+        remoteViews.setTextViewText(R.id.notification_text, notificationContent.text)
+        
+        // Set pause button text based on state
+        remoteViews.setTextViewText(R.id.pause_button, 
+            if (isPaused) "Resume" else "Pause")
 
-        // notification intent
-        val contentIntent = getContentIntent()
-        val deleteIntent = getDeleteIntent()
+        // Set button click listener
+        val pauseIntent = getPendingIntent("pause", 1)
+        remoteViews.setOnClickPendingIntent(R.id.pause_button, pauseIntent)
 
-        // notification actions
-        var needsRebuildButtons = false
-        val prevButtons = prevNotificationContent?.buttons
-        val currButtons = notificationContent.buttons
-        if (prevButtons != null) {
-            if (prevButtons.size != currButtons.size) {
-                needsRebuildButtons = true
-            } else {
-                for (i in currButtons.indices) {
-                    if (prevButtons[i] != currButtons[i]) {
-                        needsRebuildButtons = true
-                        break
-                    }
-                }
-            }
-        } else {
-            needsRebuildButtons = true
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val builder = Notification.Builder(this, notificationOptions.channelId)
-            builder.setOngoing(true)
-            builder.setShowWhen(notificationOptions.showWhen)
-            builder.setSmallIcon(iconResId)
-            builder.setContentIntent(contentIntent)
-            builder.setDeleteIntent(deleteIntent)
-            builder.setContentTitle(notificationContent.title)
-            builder.setContentText(notificationContent.text)
-            builder.setStyle(Notification.BigTextStyle())
-            builder.setVisibility(notificationOptions.visibility)
-            builder.setOnlyAlertOnce(notificationOptions.onlyAlertOnce)
-            
-            if (iconBackgroundColor != null) {
-                builder.setColor(iconBackgroundColor)
-            }
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
-            }
-
-            val actions = buildNotificationActions(currButtons, needsRebuildButtons)
-            for (action in actions) {
-                builder.addAction(action)
-            }
-
-            return builder.build()
-        } else {
-            val builder = NotificationCompat.Builder(this, notificationOptions.channelId)
-            builder.setOngoing(true)
-            builder.setShowWhen(notificationOptions.showWhen)
-            builder.setSmallIcon(iconResId)
-            builder.setContentIntent(contentIntent)
-            builder.setDeleteIntent(deleteIntent)
-            builder.setContentTitle(notificationContent.title)
-            builder.setContentText(notificationContent.text)
-            builder.setStyle(NotificationCompat.BigTextStyle().bigText(notificationContent.text))
-            builder.setVisibility(notificationOptions.visibility)
-            builder.setOnlyAlertOnce(notificationOptions.onlyAlertOnce)
-            
-            if (iconBackgroundColor != null) {
-                builder.color = iconBackgroundColor
-            }
-            
-            if (!notificationOptions.enableVibration) {
-                builder.setVibrate(longArrayOf(0L))
-            }
-            
-            if (!notificationOptions.playSound) {
-                builder.setSound(null)
-            }
-            
-            builder.priority = notificationOptions.priority
-
-            val actions = buildNotificationCompatActions(currButtons, needsRebuildButtons)
-            for (action in actions) {
-                builder.addAction(action)
-            }
-
-            return builder.build()
-        }
+        // Build notification
+        return NotificationCompat.Builder(this, notificationOptions.channelId)
+            .setSmallIcon(iconResId)
+            .setCustomContentView(remoteViews)
+            .setOngoing(true)
+            .build()
     }
 
     private fun updateNotification() {
@@ -600,5 +550,19 @@ class ForegroundService : Service() {
         }
 
         return actions
+    }
+
+    private fun getPendingIntent(action: String, requestCode: Int): PendingIntent {
+        val intent = Intent(ACTION_NOTIFICATION_BUTTON_PRESSED).apply {
+            setPackage(packageName)
+            putExtra(INTENT_DATA_NAME, action)
+        }
+        
+        var flags = PendingIntent.FLAG_UPDATE_CURRENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            flags = flags or PendingIntent.FLAG_IMMUTABLE
+        }
+        
+        return PendingIntent.getBroadcast(this, requestCode, intent, flags)
     }
 }
