@@ -17,34 +17,42 @@ void startCallback() {
 }
 
 class MyTaskHandler extends TaskHandler {
-  static const String incrementCountCommand = 'incrementCount';
+  int _seconds = 0;
 
-  int _count = 0;
-
-  void _incrementCount() {
-    _count++;
-
-    // Update notification content.
-    FlutterForegroundTask.updateService(
-      notificationTitle: 'Hello MyTaskHandler :)',
-      notificationText: 'count: $_count',
-    );
-
-    // Send data to main isolate.
-    FlutterForegroundTask.sendDataToMain(_count);
+  String _formatTime() {
+    int hours = _seconds ~/ 3600;
+    int minutes = (_seconds % 3600) ~/ 60;
+    int seconds = _seconds % 60;
+    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  // Called when the task is started.
+  void _updateTimer() {
+    _seconds++;
+    FlutterForegroundTask.updateService(
+      notificationTitle: 'Timer Running',
+      notificationText: _formatTime(),
+    );
+    FlutterForegroundTask.sendDataToMain(_formatTime());
+  }
+
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     print('onStart(starter: ${starter.name})');
-    _incrementCount();
+    _updateTimer();
   }
 
-  // Called based on the eventAction set in ForegroundTaskOptions.
   @override
   void onRepeatEvent(DateTime timestamp) {
-    _incrementCount();
+    _updateTimer();
+  }
+
+  @override
+  void onNotificationButtonPressed(String id) {
+    print('Button pressed: $id');
+    if (id == 'stop') {
+      
+      // FlutterForegroundTask.stopService();
+    }
   }
 
   // Called when the task is destroyed.
@@ -57,15 +65,6 @@ class MyTaskHandler extends TaskHandler {
   @override
   void onReceiveData(Object data) {
     print('onReceiveData: $data');
-    if (data == incrementCountCommand) {
-      _incrementCount();
-    }
-  }
-
-  // Called when the notification button is pressed.
-  @override
-  void onNotificationButtonPressed(String id) {
-    print('onNotificationButtonPressed: $id');
   }
 
   // Called when the notification itself is pressed.
@@ -167,13 +166,9 @@ class _ExamplePageState extends State<ExamplePage> {
     } else {
       return FlutterForegroundTask.startService(
         serviceId: 256,
-        notificationTitle: 'Foreground Service is running',
-        notificationText: 'Tap to return to the app',
+        notificationTitle: 'Timer Running',
+        notificationText: '00:00:00',
         notificationIcon: null,
-        notificationButtons: [
-          const NotificationButton(id: 'btn_hello', text: 'hello'),
-        ],
-        notificationInitialRoute: '/second',
         callback: startCallback,
       );
     }
@@ -186,10 +181,6 @@ class _ExamplePageState extends State<ExamplePage> {
   void _onReceiveTaskData(Object data) {
     print('onReceiveTaskData: $data');
     _taskDataListenable.value = data;
-  }
-
-  void _incrementCount() {
-    FlutterForegroundTask.sendDataToTask(MyTaskHandler.incrementCountCommand);
   }
 
   @override
@@ -270,7 +261,6 @@ class _ExamplePageState extends State<ExamplePage> {
         children: [
           buttonBuilder('start service', onPressed: _startService),
           buttonBuilder('stop service', onPressed: _stopService),
-          buttonBuilder('increment count', onPressed: _incrementCount),
         ],
       ),
     );

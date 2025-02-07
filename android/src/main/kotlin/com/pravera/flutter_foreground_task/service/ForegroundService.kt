@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import java.util.*
 import com.pravera.flutter_foreground_task.service.NotificationDismissedReceiver
+import android.widget.RemoteViews
+import com.pravera.flutter_foreground_task.R
 
 /**
  * A service class for implementing foreground service.
@@ -103,22 +105,11 @@ class ForegroundService : Service() {
             if (intent == null) return
 
             try {
-                // This intent has not sent from the current package.
-                val iPackageName = intent.`package`
-                val cPackageName = packageName
-                if (iPackageName != cPackageName) {
-                    Log.d(TAG, "This intent has not sent from the current package. ($iPackageName != $cPackageName)")
-                    return
-                }
-
                 val action = intent.action ?: return
                 val data = intent.getStringExtra(INTENT_DATA_NAME)
-                task?.invokeMethod(action, data)
-
-                if (action == ACTION_NOTIFICATION_DISMISSED) {
-                    // Restart the service with a new notification
-                    startForegroundService()
-                    return
+                
+                if (action == ACTION_NOTIFICATION_BUTTON_PRESSED) {
+                    task?.invokeMethod(action, data)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, e.message, e)
@@ -308,95 +299,29 @@ class ForegroundService : Service() {
     }
 
     private fun createNotification(): Notification {
-        // notification icon
         val icon = notificationContent.icon
         val iconResId = getIconResId(icon)
-        val iconBackgroundColor = icon?.backgroundColorRgb?.let(::getRgbColor)
+        
+        val remoteViews = RemoteViews(packageName, R.layout.custom_notification)
+        
+        // Set notification content
+        remoteViews.setTextViewText(R.id.notification_title, notificationContent.title)
+        remoteViews.setTextViewText(R.id.notification_text, notificationContent.text)
 
-        // notification intent
+        // Create content intent to open app
         val contentIntent = getContentIntent()
-        val deleteIntent = getDeleteIntent()
 
-        // notification actions
-        var needsRebuildButtons = false
-        val prevButtons = prevNotificationContent?.buttons
-        val currButtons = notificationContent.buttons
-        if (prevButtons != null) {
-            if (prevButtons.size != currButtons.size) {
-                needsRebuildButtons = true
-            } else {
-                for (i in currButtons.indices) {
-                    if (prevButtons[i] != currButtons[i]) {
-                        needsRebuildButtons = true
-                        break
-                    }
-                }
-            }
-        } else {
-            needsRebuildButtons = true
-        }
+        // Add button click listener
+        val stopIntent = getPendingIntent("stop", 1)
+        remoteViews.setOnClickPendingIntent(R.id.stop_button, stopIntent)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val builder = Notification.Builder(this, notificationOptions.channelId)
-            builder.setOngoing(true)
-            builder.setShowWhen(notificationOptions.showWhen)
-            builder.setSmallIcon(iconResId)
-            builder.setContentIntent(contentIntent)
-            builder.setDeleteIntent(deleteIntent)
-            builder.setContentTitle(notificationContent.title)
-            builder.setContentText(notificationContent.text)
-            builder.setStyle(Notification.BigTextStyle())
-            builder.setVisibility(notificationOptions.visibility)
-            builder.setOnlyAlertOnce(notificationOptions.onlyAlertOnce)
-            
-            if (iconBackgroundColor != null) {
-                builder.setColor(iconBackgroundColor)
-            }
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
-            }
-
-            val actions = buildNotificationActions(currButtons, needsRebuildButtons)
-            for (action in actions) {
-                builder.addAction(action)
-            }
-
-            return builder.build()
-        } else {
-            val builder = NotificationCompat.Builder(this, notificationOptions.channelId)
-            builder.setOngoing(true)
-            builder.setShowWhen(notificationOptions.showWhen)
-            builder.setSmallIcon(iconResId)
-            builder.setContentIntent(contentIntent)
-            builder.setDeleteIntent(deleteIntent)
-            builder.setContentTitle(notificationContent.title)
-            builder.setContentText(notificationContent.text)
-            builder.setStyle(NotificationCompat.BigTextStyle().bigText(notificationContent.text))
-            builder.setVisibility(notificationOptions.visibility)
-            builder.setOnlyAlertOnce(notificationOptions.onlyAlertOnce)
-            
-            if (iconBackgroundColor != null) {
-                builder.color = iconBackgroundColor
-            }
-            
-            if (!notificationOptions.enableVibration) {
-                builder.setVibrate(longArrayOf(0L))
-            }
-            
-            if (!notificationOptions.playSound) {
-                builder.setSound(null)
-            }
-            
-            builder.priority = notificationOptions.priority
-
-            val actions = buildNotificationCompatActions(currButtons, needsRebuildButtons)
-            for (action in actions) {
-                builder.addAction(action)
-            }
-
-            return builder.build()
-        }
+        return NotificationCompat.Builder(this, notificationOptions.channelId)
+            .setSmallIcon(iconResId)
+            .setCustomContentView(remoteViews)
+            .setContentIntent(contentIntent)
+            .setAutoCancel(true)
+            .setOngoing(true)
+            .build()
     }
 
     private fun updateNotification() {
@@ -496,16 +421,9 @@ class ForegroundService : Service() {
     }
 
     private fun getContentIntent(): PendingIntent {
-        val packageManager = applicationContext.packageManager
-        val packageName = applicationContext.packageName
         val intent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
             putExtra(INTENT_DATA_NAME, ACTION_NOTIFICATION_PRESSED)
-
-            // set initialRoute
-            val initialRoute = notificationContent.initialRoute
-            if (initialRoute != null) {
-                putExtra("route", initialRoute)
-            }
         }
 
         var flags = PendingIntent.FLAG_UPDATE_CURRENT
@@ -513,7 +431,7 @@ class ForegroundService : Service() {
             flags = flags or PendingIntent.FLAG_IMMUTABLE
         }
 
-        return PendingIntent.getActivity(this, RequestCode.NOTIFICATION_PRESSED, intent, flags)
+        return PendingIntent.getActivity(this, 0, intent, flags)
     }
 
     private fun getDeleteIntent(): PendingIntent {
@@ -600,5 +518,19 @@ class ForegroundService : Service() {
         }
 
         return actions
+    }
+
+    private fun getPendingIntent(action: String, requestCode: Int): PendingIntent {
+        val intent = Intent(ACTION_NOTIFICATION_BUTTON_PRESSED).apply {
+            setPackage(packageName)
+            putExtra(INTENT_DATA_NAME, action)
+        }
+        
+        var flags = PendingIntent.FLAG_UPDATE_CURRENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            flags = flags or PendingIntent.FLAG_IMMUTABLE
+        }
+        
+        return PendingIntent.getBroadcast(this, requestCode, intent, flags)
     }
 }
