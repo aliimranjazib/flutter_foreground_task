@@ -5,6 +5,7 @@ import android.app.*
 import android.content.*
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.wifi.WifiManager
 import android.os.*
@@ -27,6 +28,8 @@ import java.util.*
 import com.pravera.flutter_foreground_task.service.NotificationDismissedReceiver
 import android.widget.RemoteViews
 import com.pravera.flutter_foreground_task.R
+import android.support.v4.media.session.MediaSessionCompat
+import androidx.media.app.NotificationCompat.MediaStyle
 
 /**
  * A service class for implementing foreground service.
@@ -302,25 +305,55 @@ class ForegroundService : Service() {
         val icon = notificationContent.icon
         val iconResId = getIconResId(icon)
         
-        val remoteViews = RemoteViews(packageName, R.layout.custom_notification)
+        // Convert icon resource to bitmap for large icon
+        val largeIcon = BitmapFactory.decodeResource(resources, iconResId)
         
-        // Set notification content
-       // remoteViews.setTextViewText(R.id.notification_title, notificationContent.title)
-        remoteViews.setTextViewText(R.id.notification_text, notificationContent.text)
+        // Create layouts for both states
+        val collapsedLayout = RemoteViews(packageName, R.layout.notification_small)
+        val expandedLayout = RemoteViews(packageName, R.layout.notification_large)
+        
+        // Set up collapsed layout
+        collapsedLayout.setImageViewBitmap(R.id.notification_icon, largeIcon)
+        collapsedLayout.setTextViewText(R.id.notification_title, notificationContent.title)
+        collapsedLayout.setTextViewText(R.id.notification_text, notificationContent.text)
+        collapsedLayout.setTextViewText(R.id.notification_info, "Additional information")
+        
+        // Set up expanded layout
+        expandedLayout.setImageViewBitmap(R.id.notification_icon, largeIcon)
+        expandedLayout.setTextViewText(R.id.notification_title, notificationContent.title)
+        expandedLayout.setTextViewText(R.id.notification_text, notificationContent.text)
+        expandedLayout.setTextViewText(R.id.notification_info, "Additional information here")
 
-        // Create content intent to open app
+        // Create content intent
         val contentIntent = getContentIntent()
 
-        // Add button click listener
-        val stopIntent = getPendingIntent("stop", 1)
-        remoteViews.setOnClickPendingIntent(R.id.stop_button, stopIntent)
+        // Create notification channel with high importance
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                notificationOptions.channelId,
+                notificationOptions.channelName,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                setShowBadge(true)
+                enableLights(true)
+                enableVibration(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
 
         return NotificationCompat.Builder(this, notificationOptions.channelId)
             .setSmallIcon(iconResId)
-            .setCustomContentView(remoteViews)
+            .setCustomContentView(collapsedLayout)
+            .setCustomBigContentView(expandedLayout)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setContentIntent(contentIntent)
-            .setAutoCancel(true)
+            .setAutoCancel(false)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
     }
 
