@@ -305,7 +305,7 @@ class ForegroundService : Service() {
         val remoteViews = RemoteViews(packageName, R.layout.custom_notification)
         
         // Set notification content
-        remoteViews.setTextViewText(R.id.notification_title, notificationContent.title)
+       // remoteViews.setTextViewText(R.id.notification_title, notificationContent.title)
         remoteViews.setTextViewText(R.id.notification_text, notificationContent.text)
 
         // Create content intent to open app

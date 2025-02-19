@@ -5,14 +5,6 @@
     android:orientation="vertical"
     android:padding="8dp">
 
-    <TextView
-        android:id="@+id/notification_title"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#4CAF50" />
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -24,17 +16,48 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textSize="24sp"
+            android:textSize="36sp"
             android:textStyle="bold"
-            android:textColor="#2196F3" />
-
-        <Button
+            android:textColor="#477EEB" />
+         <ImageView
+            android:id="@+id/stop_button"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:scaleType="fitEnd"
+            android:src="@drawable/stop" />
+        <!-- <Button
             android:id="@+id/stop_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Stop"
             android:textColor="#FFFFFF"
-            android:background="#F44336" />
+            android:background="#F44336" /> -->
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/additional_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="14sp"
+            android:text="Field Maintenance"
+            android:fontWeight="500"
+            android:textColor="#262F40" />
+
+        <ImageView
+            android:id="@+id/notification_image"
+            android:layout_width="72dp"
+            android:layout_height="12dp"
+            android:scaleType="fitEnd"
+            
+            android:src="@drawable/anywork_text_logo" />
     </LinearLayout>
 
 </LinearLayout>
