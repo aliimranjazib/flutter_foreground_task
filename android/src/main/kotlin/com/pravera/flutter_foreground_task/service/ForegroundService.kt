@@ -302,25 +302,36 @@ class ForegroundService : Service() {
         val icon = notificationContent.icon
         val iconResId = getIconResId(icon)
         
-        val remoteViews = RemoteViews(packageName, R.layout.custom_notification)
+        // Create collapsed and expanded RemoteViews
+        val collapsedView = RemoteViews(packageName, R.layout.custom_notification)
+        val expandedView = RemoteViews(packageName, R.layout.notification_expanded)
         
-        // Set notification content
-       // remoteViews.setTextViewText(R.id.notification_title, notificationContent.title)
-        remoteViews.setTextViewText(R.id.notification_text, notificationContent.text)
-
+        // Set notification content for both views
+        collapsedView.setTextViewText(R.id.notification_text, notificationContent.text)
+        expandedView.setTextViewText(R.id.notification_text, notificationContent.text)
+        
         // Create content intent to open app
         val contentIntent = getContentIntent()
 
-        // Add button click listener
+        // Add button click listeners for both views
         val stopIntent = getPendingIntent("stop", 1)
-        remoteViews.setOnClickPendingIntent(R.id.stop_button, stopIntent)
+        collapsedView.setOnClickPendingIntent(R.id.stop_button, stopIntent)
+        expandedView.setOnClickPendingIntent(R.id.stop_button, stopIntent)
 
         return NotificationCompat.Builder(this, notificationOptions.channelId)
             .setSmallIcon(iconResId)
-            .setCustomContentView(remoteViews)
+            .setCustomContentView(collapsedView)
+            .setCustomBigContentView(expandedView)
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .setOngoing(true)
+            .setStyle(
+                NotificationCompat.InboxStyle()
+                .addLine("Re: Planning")
+                .addLine("Delivery on its way")
+                .addLine("Follow-up")
+.addLine("Follow-up").addLine("Follow-up").addLine("Follow-up").addLine("Follow-up")
+                )
             .build()
     }
 
