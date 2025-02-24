@@ -29,8 +29,14 @@ class MyTaskHandler extends TaskHandler {
   void _updateTimer() {
     _seconds++;
     FlutterForegroundTask.updateService(
-      notificationTitle: 'Timer Running',
+      notificationTitle: 'Field Maintenance',
       notificationText: _formatTime(),
+      notificationButtons: [
+        NotificationButton(
+          id: 'stop',
+          text: 'Stop',
+        ),
+      ],
     );
     FlutterForegroundTask.sendDataToMain(_formatTime());
   }
@@ -50,8 +56,7 @@ class MyTaskHandler extends TaskHandler {
   void onNotificationButtonPressed(String id) {
     print('Button pressed: $id');
     if (id == 'stop') {
-      
-      // FlutterForegroundTask.stopService();
+        FlutterForegroundTask.stopService();
     }
   }
 
@@ -147,7 +152,7 @@ class _ExamplePageState extends State<ExamplePage> {
         onlyAlertOnce: true,
       ),
       iosNotificationOptions: const IOSNotificationOptions(
-        showNotification: false,
+        showNotification: true,
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
@@ -166,7 +171,7 @@ class _ExamplePageState extends State<ExamplePage> {
     } else {
       return FlutterForegroundTask.startService(
         serviceId: 256,
-        notificationTitle: 'Timer Running',
+        notificationTitle: 'Field Maintenance',
         notificationText: '00:00:00',
         notificationIcon: null,
         callback: startCallback,

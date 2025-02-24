@@ -128,10 +128,11 @@ class BackgroundService: NSObject {
     // If it is not a notification requested by this plugin, the processing below is ignored.
     if notification.request.identifier != NOTIFICATION_ID { return }
     
-    if notificationOptions.playSound {
-      completionHandler([.alert, .sound])
+    // Always show in notification center with banner to make buttons accessible
+    if #available(iOS 14.0, *) {
+        completionHandler([.banner, .list])  // Show both banner and list to ensure buttons are clickable
     } else {
-      completionHandler([.alert])
+        completionHandler([.alert])
     }
     
     // Prevents duplicate processing due to the `registrar.addApplicationDelegate`.
@@ -157,25 +158,36 @@ class BackgroundService: NSObject {
   
   private func requestNotification() {
     if !notificationOptions.showNotification {
-      return
+        return
     }
     
     notificationPermissionManager.checkPermission { permission in
-      if permission == NotificationPermission.DENIED {
-        return
-      }
-      
-      let content = UNMutableNotificationContent()
-      content.title = self.notificationContent.title
-      content.body = self.notificationContent.text
-      content.categoryIdentifier = NOTIFICATION_CATEGORY_ID
-      if self.notificationOptions.playSound {
-        content.sound = .default
-      }
-      self.setNotificationActions()
-      
-      let request = UNNotificationRequest(identifier: NOTIFICATION_ID, content: content, trigger: nil)
-      self.notificationCenter.add(request, withCompletionHandler: nil)
+        if permission == NotificationPermission.DENIED {
+            return
+        }
+        
+        let content = UNMutableNotificationContent()
+        content.title = self.notificationContent.title
+        content.body = self.notificationContent.text
+        content.categoryIdentifier = NOTIFICATION_CATEGORY_ID
+        if self.notificationOptions.playSound {
+            content.sound = .default
+        }
+        self.setNotificationActions()
+        
+        // Create a notification that stays persistent
+        let request = UNNotificationRequest(
+            identifier: NOTIFICATION_ID,
+            content: content,
+            trigger: nil
+        )
+        
+        // Update the notification
+        self.notificationCenter.add(request) { error in
+            if let error = error {
+                print("Error showing notification: \(error)")
+            }
+        }
     }
   }
   
