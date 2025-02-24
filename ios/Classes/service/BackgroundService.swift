@@ -112,11 +112,19 @@ class BackgroundService: NSObject {
     
     let actionId = response.actionIdentifier
     if notificationContent.buttons.contains(where: { $0.id == actionId }) {
-      foregroundTask?.invokeMethod(ACTION_NOTIFICATION_BUTTON_PRESSED, arguments: actionId)
+        // Handle stop button press
+        foregroundTask?.invokeMethod(ACTION_NOTIFICATION_BUTTON_PRESSED, arguments: actionId)
+        
+        // If it's the stop button, destroy the task immediately
+        if actionId == "stop" {
+            destroyForegroundTask()
+            removeAllNotification()
+            isRunningService = false
+        }
     } else if actionId == UNNotificationDefaultActionIdentifier {
-      foregroundTask?.invokeMethod(ACTION_NOTIFICATION_PRESSED, arguments: nil)
+        foregroundTask?.invokeMethod(ACTION_NOTIFICATION_PRESSED, arguments: nil)
     } else if actionId == UNNotificationDismissActionIdentifier {
-      foregroundTask?.invokeMethod(ACTION_NOTIFICATION_DISMISSED, arguments: nil)
+        foregroundTask?.invokeMethod(ACTION_NOTIFICATION_DISMISSED, arguments: nil)
     }
     
     completionHandler()
@@ -128,11 +136,11 @@ class BackgroundService: NSObject {
     // If it is not a notification requested by this plugin, the processing below is ignored.
     if notification.request.identifier != NOTIFICATION_ID { return }
     
-    // Always show in notification center with banner to make buttons accessible
+    // Only show in notification tray without banner alerts
     if #available(iOS 14.0, *) {
-        completionHandler([.banner, .list])  // Show both banner and list to ensure buttons are clickable
+        completionHandler([.list])  // Only show in notification center/tray
     } else {
-        completionHandler([.alert])
+        completionHandler([])  // Don't show banner on older iOS
     }
     
     // Prevents duplicate processing due to the `registrar.addApplicationDelegate`.
@@ -142,15 +150,20 @@ class BackgroundService: NSObject {
   private func setNotificationActions() {
     var actions: [UNNotificationAction] = []
     for button in notificationContent.buttons {
-      let action = UNNotificationAction(identifier: button.id, title: button.text)
-      actions.append(action)
+        // Create action without foreground option to prevent app opening
+        let action = UNNotificationAction(
+            identifier: button.id,
+            title: button.text,
+            options: [.destructive]  // Changed to destructive for stop action
+        )
+        actions.append(action)
     }
     
     let category = UNNotificationCategory(
-      identifier: NOTIFICATION_CATEGORY_ID,
-      actions: actions,
-      intentIdentifiers: [],
-      options: .customDismissAction
+        identifier: NOTIFICATION_CATEGORY_ID,
+        actions: actions,
+        intentIdentifiers: [],
+        options: .customDismissAction
     )
     
     notificationCenter.setNotificationCategories([category])
@@ -182,7 +195,10 @@ class BackgroundService: NSObject {
             trigger: nil
         )
         
-        // Update the notification
+        // Remove existing notification first to prevent duplicates
+        self.notificationCenter.removeDeliveredNotifications(withIdentifiers: [NOTIFICATION_ID])
+        
+        // Add the new notification
         self.notificationCenter.add(request) { error in
             if let error = error {
                 print("Error showing notification: \(error)")
