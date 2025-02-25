@@ -150,15 +150,19 @@ class BackgroundService: NSObject {
   private func setNotificationActions() {
     var actions: [UNNotificationAction] = []
     for button in notificationContent.buttons {
-        // Create action without foreground option to prevent app opening
+        // Try using .foreground option to make buttons more prominent
+        // This will cause the app to open when pressed, which may be desired for some buttons
+        let actionOptions: UNNotificationActionOptions = [.foreground]
+        
         let action = UNNotificationAction(
             identifier: button.id,
-            title: button.text,
-            options: [.destructive]  // Changed to destructive for stop action
+            title: button.text.uppercased(), // Make button text uppercase for visibility
+            options: actionOptions
         )
         actions.append(action)
     }
     
+    // Create a category with customDismissAction to capture dismissals
     let category = UNNotificationCategory(
         identifier: NOTIFICATION_CATEGORY_ID,
         actions: actions,
@@ -181,8 +185,15 @@ class BackgroundService: NSObject {
         
         let content = UNMutableNotificationContent()
         content.title = self.notificationContent.title
-        content.body = self.notificationContent.text
+        content.body = self.notificationContent.text + "\n\nAvailable Actions: " + 
+                       self.notificationContent.buttons.map { $0.text }.joined(separator: ", ")
+        
+        // Force the notification to use the expanded view style which shows buttons more prominently
         content.categoryIdentifier = NOTIFICATION_CATEGORY_ID
+        
+        // Add a subtitle which appears in a different style
+        content.subtitle = "Tap and hold to see options"
+        
         if self.notificationOptions.playSound {
             content.sound = .default
         }
