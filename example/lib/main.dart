@@ -18,6 +18,7 @@ void startCallback() {
 
 class MyTaskHandler extends TaskHandler {
   int _seconds = 0;
+  bool isPaused = false;
 
   String _formatTime() {
     int hours = _seconds ~/ 3600;
@@ -27,14 +28,16 @@ class MyTaskHandler extends TaskHandler {
   }
 
   void _updateTimer() {
-    _seconds++;
+    if (!isPaused) {
+        _seconds++;
+    }
     FlutterForegroundTask.updateService(
       notificationTitle: 'Field Maintenance',
       notificationText: _formatTime(),
       notificationButtons: [
         NotificationButton(
-          id: 'stop',
-          text: 'Stop',
+          id: isPaused ? 'resume' : 'pause',
+          text: isPaused ? 'Resume' : 'Pause',
         ),
       ],
     );
@@ -55,8 +58,12 @@ class MyTaskHandler extends TaskHandler {
   @override
   void onNotificationButtonPressed(String id) {
     print('Button pressed: $id');
-    if (id == 'stop') {
-        FlutterForegroundTask.stopService();
+    if (id == 'pause') {
+      isPaused = true;
+      _updateTimer();
+    } else if (id == 'resume') {
+      isPaused = false;
+      _updateTimer();
     }
   }
 
