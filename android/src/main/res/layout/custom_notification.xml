@@ -16,24 +16,42 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textSize="24sp"
+            android:textSize="30sp"
             android:textStyle="bold"
             android:textColor="#477EEB" />
          <ImageView
             android:id="@+id/stop_button"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:scaleType="fitEnd"
             android:src="@drawable/stop" />
 
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/secondary_text"
+   <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="16sp"
-        android:text="Field Maintenance"
-        android:layout_marginTop="4dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/additional_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="14sp"
+            android:text="Field Maintenance"
+            android:fontWeight="500"
+            android:textColor="#262F40" />
+
+        <ImageView
+            android:id="@+id/notification_image"
+            android:layout_width="72dp"
+            android:layout_height="10dp"
+            android:scaleType="fitEnd"
+            
+            android:src="@drawable/anywork_text_logo" />
+    </LinearLayout>
 
 </LinearLayout>
