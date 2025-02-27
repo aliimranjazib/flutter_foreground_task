@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="4dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,22 +16,18 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textSize="36sp"
+            android:textSize="30sp"
             android:textStyle="bold"
             android:textColor="#477EEB" />
-         <ImageView
-            android:id="@+id/stop_button"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:scaleType="fitEnd"
-            android:src="@drawable/pause" />
-        <!-- <Button
-            android:id="@+id/stop_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Stop"
-            android:textColor="#FFFFFF"
-            android:background="#F44336" /> -->
+
+        <ImageButton
+            android:id="@+id/pauseResume_button"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:scaleType="fitCenter"
+            android:src="@drawable/pause_one" />
+
     </LinearLayout>
 
     <LinearLayout
@@ -39,7 +35,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginTop="8dp">
+        android:layout_marginTop="4dp">
 
         <TextView
             android:id="@+id/additional_text"
@@ -54,9 +50,8 @@
         <ImageView
             android:id="@+id/notification_image"
             android:layout_width="72dp"
-            android:layout_height="12dp"
+            android:layout_height="10dp"
             android:scaleType="fitEnd"
-            
             android:src="@drawable/anywork_text_logo" />
     </LinearLayout>
 

@@ -310,13 +310,28 @@ class ForegroundService : Service() {
         collapsedView.setTextViewText(R.id.notification_text, notificationContent.text)
         expandedView.setTextViewText(R.id.notification_text, notificationContent.text)
         
+        // Get pause state from notification buttons if available
+        val isPaused = notificationContent.buttons?.firstOrNull()?.let { button ->
+            (button as? Map<*, *>)?.get("text") as? String == "Resume"
+        } ?: false
+
+        // Set the appropriate image based on pause state
+        val buttonImageRes = if (isPaused) {
+            R.drawable.play_one
+        } else {
+            R.drawable.pause_one
+        }
+        
+        collapsedView.setImageViewResource(R.id.pauseResume_button, buttonImageRes)
+        expandedView.setImageViewResource(R.id.pauseResume_button, buttonImageRes)
+
         // Create content intent to open app
         val contentIntent = getContentIntent()
 
-        // Add button click listeners for both views
-        val stopIntent = getPendingIntent("stop", 1)
-        collapsedView.setOnClickPendingIntent(R.id.stop_button, stopIntent)
-        expandedView.setOnClickPendingIntent(R.id.stop_button, stopIntent)
+        // Add pause/resume button click listener
+        val pauseResumeIntent = getPendingIntent("pauseResume", 1)
+        collapsedView.setOnClickPendingIntent(R.id.pauseResume_button, pauseResumeIntent)
+        expandedView.setOnClickPendingIntent(R.id.pauseResume_button, pauseResumeIntent)
 
         return NotificationCompat.Builder(this, notificationOptions.channelId)
             .setSmallIcon(iconResId)

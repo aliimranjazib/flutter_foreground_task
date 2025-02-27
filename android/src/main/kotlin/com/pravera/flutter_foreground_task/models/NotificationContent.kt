@@ -9,7 +9,7 @@ data class NotificationContent(
         val title: String,
         val text: String,
         val icon: NotificationIcon?,
-        val buttons: List<NotificationButton>,
+        val buttons: List<Map<String, Any>>? = null,
         val initialRoute: String?
 ) {
     companion object {
@@ -27,12 +27,12 @@ data class NotificationContent(
             }
 
             val buttonsJsonString = prefs.getString(PrefsKey.NOTIFICATION_CONTENT_BUTTONS, null)
-            val buttons: MutableList<NotificationButton> = mutableListOf()
+            val buttons: MutableList<Map<String, Any>> = mutableListOf()
             if (buttonsJsonString != null) {
                 val buttonsJsonArr = JSONArray(buttonsJsonString)
                 for (i in 0 until buttonsJsonArr.length()) {
                     val buttonJsonObj = buttonsJsonArr.getJSONObject(i)
-                    buttons.add(NotificationButton.fromJSONObject(buttonJsonObj))
+                    buttons.add(buttonJsonObj.toMap())
                 }
             }
 
@@ -118,5 +118,17 @@ data class NotificationContent(
                 commit()
             }
         }
+
+        fun fromMap(map: Map<String, Any?>): NotificationContent {
+            return NotificationContent(
+                title = map["title"] as String,
+                text = map["text"] as String,
+                icon = map["icon"] as? NotificationIcon,
+                buttons = map["buttons"] as? List<Map<String, Any>>,
+                initialRoute = map["initialRoute"] as? String
+            )
+        }
     }
 }
+
+private fun JSONObject.toMap(): Map<String, Any> = keys().asSequence().associateWith { get(it) }

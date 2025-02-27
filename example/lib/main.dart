@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_foreground_task/models/notification_button.dart';
 
 void main() {
   // Initialize port for communication between TaskHandler and UI.
@@ -18,6 +19,7 @@ void startCallback() {
 
 class MyTaskHandler extends TaskHandler {
   int _seconds = 0;
+  bool _isPaused = false;
 
   String _formatTime() {
     int hours = _seconds ~/ 3600;
@@ -27,12 +29,23 @@ class MyTaskHandler extends TaskHandler {
   }
 
   void _updateTimer() {
-    _seconds++;
+    if (!_isPaused) {
+      _seconds++;
+    }
     FlutterForegroundTask.updateService(
-      notificationTitle: 'Timer Running',
+      notificationTitle: _isPaused ? 'Timer Paused' : 'Timer Running',
       notificationText: _formatTime(),
+      notificationButtons: [
+        NotificationButton(
+          id: 'pauseResume',
+          text: _isPaused ? 'Resume' : 'Pause',
+        ),
+      ],
     );
-    FlutterForegroundTask.sendDataToMain(_formatTime());
+    FlutterForegroundTask.sendDataToMain({
+      'time': _formatTime(),
+      'isPaused': _isPaused
+    });
   }
 
   @override
@@ -49,9 +62,18 @@ class MyTaskHandler extends TaskHandler {
   @override
   void onNotificationButtonPressed(String id) {
     print('Button pressed: $id');
-    if (id == 'stop') {
-      
-      // FlutterForegroundTask.stopService();
+    if (id == 'pauseResume') {
+      _isPaused = !_isPaused;
+      FlutterForegroundTask.updateService(
+        notificationTitle: _isPaused ? 'Timer Paused' : 'Timer Running',
+        notificationText: _formatTime(),
+        notificationButtons: [
+          NotificationButton(
+            id: 'pauseResume',
+            text: _isPaused ? 'Resume' : 'Pause',
+          ),
+        ],
+      );
     }
   }
 
@@ -103,7 +125,7 @@ class ExamplePage extends StatefulWidget {
 }
 
 class _ExamplePageState extends State<ExamplePage> {
-  final ValueNotifier<Object?> _taskDataListenable = ValueNotifier(null);
+  final ValueNotifier<Map<String, dynamic>?> _taskDataListenable = ValueNotifier(null);
 
   Future<void> _requestPermissions() async {
     // Android 13+, you need to allow notification permission to display foreground service notification.
@@ -169,6 +191,12 @@ class _ExamplePageState extends State<ExamplePage> {
         notificationTitle: 'Timer Running',
         notificationText: '00:00:00',
         notificationIcon: null,
+        notificationButtons: [
+          NotificationButton(
+            id: 'pauseResume',
+            text: 'Pause',
+          ),
+        ],
         callback: startCallback,
       );
     }
@@ -180,7 +208,9 @@ class _ExamplePageState extends State<ExamplePage> {
 
   void _onReceiveTaskData(Object data) {
     print('onReceiveTaskData: $data');
-    _taskDataListenable.value = data;
+    if (data is Map<String, dynamic>) {
+      _taskDataListenable.value = data;
+    }
   }
 
   @override
@@ -233,12 +263,15 @@ class _ExamplePageState extends State<ExamplePage> {
     return ValueListenableBuilder(
       valueListenable: _taskDataListenable,
       builder: (context, data, _) {
+        if (data == null) return const SizedBox();
+        
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              const Text('You received data from TaskHandler:'),
-              Text('$data', style: Theme.of(context).textTheme.headlineMedium),
+              Text(data['isPaused'] ? 'Timer Paused' : 'Timer Running'),
+              Text(data['time'].toString(), 
+                   style: Theme.of(context).textTheme.headlineMedium),
             ],
           ),
         );

@@ -19,12 +19,14 @@
             android:textSize="30sp"
             android:textStyle="bold"
             android:textColor="#477EEB" />
-         <ImageView
-            android:id="@+id/stop_button"
+
+        <ImageButton
+            android:id="@+id/pauseResume_button"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:scaleType="fitEnd"
-            android:src="@drawable/pause" />
+            android:background="?android:attr/selectableItemBackground"
+            android:scaleType="fitCenter"
+            android:src="@drawable/pause_one" />
 
     </LinearLayout>
 
